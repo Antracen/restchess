@@ -1,0 +1,299 @@
+package wass.chess;
+
+public class ChessBoard {
+
+    long version = 0; // Increment when board changes
+    ChessPiece[][] board = new ChessPiece[8][8];
+    Color turn = Color.WHITE;
+    int[] lastMove = new int[4];
+
+    ChessBoard() {
+        for(int i = 0; i < 8; i++) {
+            board[1][i] = new ChessPiece(Color.WHITE, Piece.PAWN);
+            board[6][i] = new ChessPiece(Color.BLACK, Piece.PAWN);
+        }
+
+        board[0][0] = new ChessPiece(Color.WHITE, Piece.ROOK);
+        board[0][7] = new ChessPiece(Color.WHITE, Piece.ROOK);
+        board[7][0] = new ChessPiece(Color.BLACK, Piece.ROOK);
+        board[7][7] = new ChessPiece(Color.BLACK, Piece.ROOK);
+
+        board[0][1] = new ChessPiece(Color.WHITE, Piece.KNIGHT);
+        board[0][6] = new ChessPiece(Color.WHITE, Piece.KNIGHT);
+        board[7][1] = new ChessPiece(Color.BLACK, Piece.KNIGHT);
+        board[7][6] = new ChessPiece(Color.BLACK, Piece.KNIGHT);
+
+        board[0][2] = new ChessPiece(Color.WHITE, Piece.BISHOP);
+        board[0][5] = new ChessPiece(Color.WHITE, Piece.BISHOP);
+        board[7][2] = new ChessPiece(Color.BLACK, Piece.BISHOP);
+        board[7][5] = new ChessPiece(Color.BLACK, Piece.BISHOP);
+
+        board[0][3] = new ChessPiece(Color.WHITE, Piece.QUEEN);
+        board[7][3] = new ChessPiece(Color.BLACK, Piece.QUEEN);
+
+        board[0][4] = new ChessPiece(Color.WHITE, Piece.KING);
+        board[7][4] = new ChessPiece(Color.BLACK, Piece.KING);
+    }
+
+    public String getBoard() {
+        StringBuilder sb = new StringBuilder();
+        for(int i = 0; i < 8; i++) {
+            for(int j = 0; j < 8; j++) {
+                sb.append(pieceLetter(board[i][j]));
+            }
+        }
+        return sb.toString();
+    }
+
+    private char pieceLetter(ChessPiece chessPiece) {
+        char letter = '-';
+        if(chessPiece != null) {
+            switch (chessPiece.piece) {
+                case PAWN:
+                    letter = 'p';
+                    break;
+                case ROOK:
+                    letter = 'r';
+                    break;
+                case KNIGHT:
+                    letter = 'n';
+                    break;
+                case BISHOP:
+                    letter = 'b';
+                    break;
+                case QUEEN:
+                    letter = 'q';
+                    break;
+                case KING:
+                    letter = 'k';
+                    break;
+            }
+            if (chessPiece.color == Color.WHITE) letter = Character.toUpperCase(letter);
+        }
+
+        return letter;
+    }
+
+    public long getVersion() {
+        return version;
+    }
+
+    public void move(int row1, int col1, int row2, int col2) {
+        version++;
+        if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) return;
+
+        if(legalMove(row1, col1, row2, col2)) {
+            makeTheMove(row1, col1, row2, col2);
+        }
+        else if(enPassant(row1, col1, row2, col2)) {
+            makeTheMove(row1, col1, row2, col2);
+
+            // Captured en passant piece
+            board[row1][col2] = null;
+        }
+        else if(castling(row1, col1, row2, col2)) {
+            makeTheMove(row1, col1, row2, col2);
+
+            // Move the rook
+            int colStep = (col2-col1) < 0 ? -1 : 1;
+            if(colStep == 1) {
+                board[row1][col2-colStep] = board[row1][7];
+                board[row1][7] = null;
+            }
+            else {
+                board[row1][col2-colStep] = board[row1][0];
+                board[row1][0] = null;
+            }
+        }
+    }
+
+    private void makeTheMove(int row1, int col1, int row2, int col2) {
+        board[row2][col2] = board[row1][col1];
+        board[row1][col1] = null;
+
+        lastMove[0] = row1;
+        lastMove[1] = col1;
+        lastMove[2] = row2;
+        lastMove[3] = col2;
+
+        turn = turn == Color.WHITE ? Color.BLACK : Color.WHITE;
+    }
+
+    private boolean legalMove(int row1, int col1, int row2, int col2) {
+        ChessPiece pieceToMove = board[row1][col1];
+
+        if(pieceToMove.color != turn) return false;
+
+        if(pieceToMove.piece == Piece.PAWN) return legalPawnMove(pieceToMove.color, row1, col1, row2, col2);
+        if(pieceToMove.piece == Piece.ROOK) return legalRookMove(pieceToMove.color, row1, col1, row2, col2);
+        if(pieceToMove.piece == Piece.KNIGHT) return legalKnightMove(pieceToMove.color, row1, col1, row2, col2);
+        if(pieceToMove.piece == Piece.BISHOP) return legalBishopMove(pieceToMove.color, row1, col1, row2, col2);
+        if(pieceToMove.piece == Piece.QUEEN) return legalQueenMove(pieceToMove.color, row1, col1, row2, col2);
+        if(pieceToMove.piece == Piece.KING) return legalKingMove(pieceToMove.color, row1, col1, row2, col2);
+
+        return false;
+    }
+
+    private boolean legalPawnMove(Color color, int row1, int col1, int row2, int col2) {
+        if(color == Color.WHITE) {
+            return
+                    (col1 == col2 && row1 + 1 == row2 && board[row2][col2] == null)
+                    || (row1 == 1 && col1 == col2 && row1 + 2 == row2 && board[row2][col2] == null)
+                    || (abs(col1 - col2) == 1 && row1 + 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
+        }
+        else {
+            return
+                    (col1 == col2 && row1 - 1 == row2 && board[row2][col2] == null)
+                    || (row1 == 6 && col1 == col2 && row1 - 2 == row2 && board[row2][col2] == null)
+                    || (abs(col1 - col2) == 1 && row1 - 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
+        }
+    }
+
+    private boolean legalRookMove(Color color, int row1, int col1, int row2, int col2) {
+        if(row1 != row2 && col1 != col2) return false; // Can't move in both directions
+
+        int rowDirection = 0;
+        int colDirection = 0;
+
+        if(row1 != row2) rowDirection = (row2-row1) < 0 ? -1 : 1;
+        if(col1 != col2) colDirection = (col2-col1) < 0 ? -1 : 1;
+
+        for(int row = row1 + rowDirection; row != row2; row += rowDirection) {
+            if(board[row][col1] != null) return false;
+        }
+        for(int col = col1 + colDirection; col != col2; col += colDirection) {
+            if(board[row1][col] != null) return false;
+        }
+
+        if(board[row2][col2] == null) return true;
+        else {
+            return board[row2][col2].color != color;
+        }
+    }
+
+    private boolean legalKnightMove(Color color, int row1, int col1, int row2, int col2) {
+        int rowStep = abs(row1 - row2);
+        int colStep = abs(col1 - col2);
+
+        if(rowStep == 1 && colStep != 2) return false;
+        if(colStep == 1 && rowStep != 2) return false;
+        if(rowStep == 2 && colStep != 1) return false;
+        if(colStep == 2 && rowStep != 1) return false;
+
+        ChessPiece target = board[row2][col2];
+        return target == null || target.color != color;
+    }
+
+    private boolean legalBishopMove(Color color, int row1, int col1, int row2, int col2) {
+        int rowStep = abs(row1 - row2);
+        int colStep = abs(col1 - col2);
+        if(rowStep != colStep) return false;
+
+        int rowDir = (row2-row1) < 0 ? -1 : 1;
+        int colDir = (col2-col1) < 0 ? -1 : 1;
+
+        for(int i = 1; i < rowStep; i++) {
+            if(board[row1 + rowDir*i][col1 + colDir*i] != null) return false;
+        }
+
+        ChessPiece target = board[row2][col2];
+        return target == null || target.color != color;
+    }
+
+    private boolean legalQueenMove(Color color, int row1, int col1, int row2, int col2) {
+        return legalRookMove(color, row1, col1, row2, col2) || legalBishopMove(color, row1, col1, row2, col2);
+    }
+
+    private boolean legalKingMove(Color color, int row1, int col1, int row2, int col2) {
+        int rowStep = abs(row1 - row2);
+        int colStep = abs(col1 - col2);
+
+        if(rowStep + colStep != 1) return false;
+
+        ChessPiece target = board[row2][col2];
+        return target == null || target.color != color;
+    }
+
+    private boolean enPassant(int row1, int col1, int row2, int col2) {
+        ChessPiece pieceToMove = board[row1][col1];
+        Color color = pieceToMove.color;
+
+        if(pieceToMove.piece != Piece.PAWN) return false;
+
+        if(color == Color.WHITE) {
+            if(row1 != 4) return false;
+            if(row2 != row1 + 1) return false;
+            ChessPiece enPassantTarget = board[row1][col2];
+
+            if(enPassantTarget != null && enPassantTarget.piece == Piece.PAWN && enPassantTarget.color != color) {
+                return lastMove[0] == row1+2 && lastMove[1] == col2 && lastMove[2] == row1 && lastMove[3] == col2;
+            }
+        }
+        else {
+            if(row1 != 3) return false;
+            if(row2 != row1 - 1) return false;
+            ChessPiece enPassantTarget = board[row1][col2];
+
+            if(enPassantTarget != null && enPassantTarget.piece == Piece.PAWN && enPassantTarget.color != color) {
+                return lastMove[0] == row1-2 && lastMove[1] == col2 && lastMove[2] == row1 && lastMove[3] == col2;
+            }
+        }
+
+        return false;
+    }
+
+    /*
+    *   TODO: This is not complete, needs rules for when king is in check / moves through check / has moved
+    * */
+    private boolean castling(int row1, int col1, int row2, int col2) {
+        ChessPiece pieceToMove = board[row1][col1];
+        Color color = pieceToMove.color;
+
+        if(pieceToMove.piece != Piece.KING) return false;
+
+        int rowStep = abs(row1 - row2);
+        int colStep = abs(col1 - col2);
+        if(colStep != 2) return false;
+        if(rowStep != 0) return false;
+
+        int colDir = (col2-col1) < 0 ? -1 : 1;
+
+        // Empty squares
+        if(board[row1][col1+colDir] != null) return false;
+        if(board[row1][col1+2*colDir] != null) return false;
+        if(colDir == -1 && board[row1][col1+3*colDir] != null) return false;
+
+        // Rooks
+        if(colDir == -1 && board[row1][0] == null || !(board[row1][0].color == color && board[row1][0].piece == Piece.ROOK)) return false;
+        if(colDir == 1 && board[row1][7] == null || !(board[row1][7].color == color && board[row1][7].piece == Piece.ROOK)) return false;
+
+        return true;
+    }
+
+    private int abs(int i) {
+        return i < 0 ? -i : i;
+    }
+
+    static class ChessPiece {
+        Color color;
+        Piece piece;
+
+        public ChessPiece(Color color, Piece piece) {
+            this.color = color;
+            this.piece = piece;
+        }
+    }
+
+    enum Color {
+        WHITE,
+        BLACK;
+    }
+    enum Piece {
+        PAWN,
+        ROOK,
+        KNIGHT,
+        BISHOP,
+        QUEEN,
+        KING
+    }
+}

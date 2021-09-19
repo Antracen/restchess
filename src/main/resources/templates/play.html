@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Play</title>
+    <script src="/webjars/jquery/3.2.0/jquery.min.js"></script>
+    <script src="playScript.js"></script>
+</head>
+<body onload="init();">
+
+    <param id="roomId" th:value="${roomId}"></param>
+    <param id="color" th:value="${color}"></param>
+
+    <canvas id="canvas" height="800px" width="800px"></canvas>
+
+</body>
+</html>
