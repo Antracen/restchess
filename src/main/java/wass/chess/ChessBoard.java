@@ -208,7 +208,7 @@ public class ChessBoard {
         int rowStep = abs(row1 - row2);
         int colStep = abs(col1 - col2);
 
-        if(rowStep + colStep != 1) return false;
+        if(rowStep > 1 || colStep > 1) return false;
 
         ChessPiece target = board[row2][col2];
         return target == null || target.color != color;
