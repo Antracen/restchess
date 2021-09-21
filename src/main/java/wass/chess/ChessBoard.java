@@ -110,7 +110,11 @@ public class ChessBoard {
     private void makeTheMove(int row1, int col1, int row2, int col2) {
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
-
+        
+        if (board[row2][col2].piece == Piece.PAWN && (row2 == 7 || row2 == 0)) {
+        	board[row2][col2].piece = Piece.QUEEN;
+        }
+        
         lastMove[0] = row1;
         lastMove[1] = col1;
         lastMove[2] = row2;
