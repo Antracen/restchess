@@ -5,12 +5,14 @@ let roomId;
 let canvas;
 let ctx;
 let boardImage;
+let gameFinished = false;
 let pieceImages = {};
 let move = [];
 
 function init() {
     canvas = document.getElementById('canvas');
     ctx = canvas.getContext('2d');
+    result = document.getElementById('result');
 
     canvas.addEventListener('mousedown', function(e) {
         handleMouseClick(canvas, e)
@@ -67,7 +69,13 @@ function pollBoard() {
 
                     drawPiece(board.charAt(i), row, col);
                 }
-            });
+                
+               
+               	if (data.result != null) {
+            		result.textContent = "Result: " + data.result + ", cause: " + data.resultComment;
+            		gameFinished = true;
+            	}
+	        });
         }
     });
 }
@@ -84,6 +92,10 @@ function drawPiece(piece, row, col) {
 }
 
 function handleMouseClick(canvas, event) {
+	if (gameFinished) {
+		return;
+	}
+		
     const rect = canvas.getBoundingClientRect()
     const x = event.clientX - rect.left
     const y = event.clientY - rect.top
@@ -118,4 +130,11 @@ function makeMove() {
     });
 
     move = [];
+}
+
+function resign() {
+	$.ajax({
+        url: "/resign/" + roomId + "/" + color,
+        type: "POST"
+    });
 }

@@ -63,4 +63,11 @@ public class ChessRoomHandler {
             board.move(x1, y1, x2, y2);
         }
     }
+
+	public void resign(UUID roomId, String color) {
+		ChessBoard board = getBoard(roomId);
+        if(board != null) {
+            board.resign(color);
+        }		
+	}
 }
