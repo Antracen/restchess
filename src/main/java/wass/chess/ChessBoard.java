@@ -6,7 +6,9 @@ public class ChessBoard {
     ChessPiece[][] board = new ChessPiece[8][8];
     Color turn = Color.WHITE;
     int[] lastMove = new int[4];
-
+    GameResult result;
+    String resultComment;
+    
     ChessBoard() {
         for(int i = 0; i < 8; i++) {
             board[1][i] = new ChessPiece(Color.WHITE, Piece.PAWN);
@@ -44,6 +46,14 @@ public class ChessBoard {
         }
         return sb.toString();
     }
+    
+    public GameResult getResult() {
+		return result;
+	}
+    
+    public String getResultComment() {
+		return resultComment;
+	}
 
     private char pieceLetter(ChessPiece chessPiece) {
         char letter = '-';
@@ -79,6 +89,10 @@ public class ChessBoard {
     }
 
     public void move(int row1, int col1, int row2, int col2) {
+    	if (isGameEnded()) {
+    		return;
+    	}
+    	
         version++;
         if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) return;
 
@@ -350,6 +364,7 @@ public class ChessBoard {
 			return this == WHITE ? BLACK : WHITE;
 		}
     }
+    
     enum Piece {
         PAWN,
         ROOK,
@@ -358,4 +373,41 @@ public class ChessBoard {
         QUEEN,
         KING
     }
+    
+    enum GameResult {
+    	DRAW("Draw"),
+    	STALE_MATE("Stalemate"),
+    	WHITE_WINS("White wins"),
+    	BLACK_WINS("Black wins");
+    	
+    	private String desc;
+
+		private GameResult(String desc) {
+			this.desc = desc;
+		}
+		
+		@Override
+		public String toString() {
+			return desc;
+		}
+    }
+    
+    
+	public void resign(String colorStr) {
+		if (isGameEnded()) {
+			return;
+		}
+		version++;
+		
+		Color resigner = Color.valueOf(colorStr.toUpperCase());
+		if (resigner != turn) {
+			return;
+		}
+		result = resigner == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
+		resultComment = resigner + " resigns";
+	}
+
+	private boolean isGameEnded() {
+		return result != null;
+	}
 }
