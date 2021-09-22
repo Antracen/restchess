@@ -44,7 +44,7 @@ public class ChessBoard {
     }
 
     private void cacheMove(ChessPiece[][] board, Color turn, int[] lastMove) {
-        CachedBoard cachedBoard = new CachedBoard(board, turn, lastMove);
+        CachedBoard cachedBoard = new CachedBoard(board, turn, lastMove, result);
     }
 
     public String getBoard() {
@@ -58,12 +58,12 @@ public class ChessBoard {
     }
 
     public GameResult getResult() {
-		return result;
-	}
+        return result;
+    }
 
     public String getResultComment() {
-		return resultComment;
-	}
+        return resultComment;
+    }
 
     public String getTurn() {
         if(turn == Color.WHITE) return "White";
@@ -108,6 +108,7 @@ public class ChessBoard {
     }
 
     public void undoMove() {
+        // TODO: Also reset the result
         if(history.empty()) return;
         version++;
         CachedBoard cachedBoard = history.pop();
@@ -118,13 +119,17 @@ public class ChessBoard {
 
         turn = cachedBoard.turn;
         lastMove = cachedBoard.lastMove.clone();
+        result = cachedBoard.result;
     }
 
     public void move(int row1, int col1, int row2, int col2) {
-    	if (isGameEnded()) {
-    		return;
-    	}
-        if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) return;
+        if (isGameEnded()) {
+            return;
+        }
+        if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) {
+            version++;
+            return;
+        }
 
         if(legalMove(row1, col1, row2, col2)) {
             makeTheMove(row1, col1, row2, col2);
@@ -153,19 +158,19 @@ public class ChessBoard {
     }
 
     private void makeTheMove(int row1, int col1, int row2, int col2) {
-    	if (wouldBeInCheck(turn, row1, col1, row2, col2)) {
-    		System.out.println("Illegal move, " + turn + " king would be in check");
-    		return;
-    	}
-    	
-        history.push(new CachedBoard(board, turn, lastMove));
+        if (wouldBeInCheck(turn, row1, col1, row2, col2)) {
+            System.out.println("Illegal move, " + turn + " king would be in check");
+            return;
+        }
+
+        history.push(new CachedBoard(board, turn, lastMove, result));
 
         ChessPiece oldPiece = board[row2][col2];
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
 
         if (board[row2][col2].piece == Piece.PAWN && (row2 == 7 || row2 == 0)) {
-        	board[row2][col2] = new ChessPiece(board[row2][col2].color, Piece.QUEEN);
+            board[row2][col2] = new ChessPiece(board[row2][col2].color, Piece.QUEEN);
         }
 
         lastMove[0] = row1;
@@ -174,110 +179,110 @@ public class ChessBoard {
         lastMove[3] = col2;
 
         turn = turn == Color.WHITE ? Color.BLACK : Color.WHITE;
-        
+
         if (0 == getNumberOfValidMoves(turn)) {
-        	if (isInCheck(turn)) {
-        		result = turn == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
-        		resultComment = "Checkmate";
-        	} else {
-        		result = GameResult.STALE_MATE;
-        	}
+            if (isInCheck(turn)) {
+                result = turn == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
+                resultComment = "Checkmate";
+            } else {
+                result = GameResult.STALE_MATE;
+            }
         }
     }
-    
-    
+
+
 
     private boolean wouldBeInCheck(Color color, int row1, int col1, int row2, int col2) {
-    	ChessPiece oldPiece = board[row2][col2];
+        ChessPiece oldPiece = board[row2][col2];
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
 
         boolean inCheck = isInCheck(color);
-        
-    	board[row1][col1] = board[row2][col2]; 
-    	board[row2][col2] = oldPiece;
-    	
-    	return inCheck;
-	}
 
-	private int getNumberOfValidMoves(Color color) {
-		AtomicInteger numMoves = new AtomicInteger();
+        board[row1][col1] = board[row2][col2];
+        board[row2][col2] = oldPiece;
 
-		for (int i = 0; i < board.length; ++i) {
-    		for (int j = 0; j < board.length; ++j) {
-    			ChessPiece piece = board[i][j];
-    			if (piece == null || piece.color != color) {
-    				continue;
-    			}
-    			
-    			// Todo: check would be in check
-    			getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
-    				if (!wouldBeInCheck(color, fromRow, fromCol, newRow, newCol)) {
-    					numMoves.incrementAndGet();
-    				}
-    				return true;
-    			});
-    			
-    		}
-    	}
-    	
-		return numMoves.get();
-	}
+        return inCheck;
+    }
 
-	private boolean isInCheck(Color kingColor) {
+    private int getNumberOfValidMoves(Color color) {
+        AtomicInteger numMoves = new AtomicInteger();
 
-    	Color originalToMove = turn;
-    	try {
-	    	Color opponentColor = kingColor.opposite();
+        for (int i = 0; i < board.length; ++i) {
+            for (int j = 0; j < board.length; ++j) {
+                ChessPiece piece = board[i][j];
+                if (piece == null || piece.color != color) {
+                    continue;
+                }
 
-	    	turn = opponentColor; // Otherwise legalMove will not allow it
+                // Todo: check would be in check
+                getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
+                    if (!wouldBeInCheck(color, fromRow, fromCol, newRow, newCol)) {
+                        numMoves.incrementAndGet();
+                    }
+                    return true;
+                });
 
-	    	for (int i = 0; i < board.length; ++i) {
-	    		for (int j = 0; j < board.length; ++j) {
-	    			ChessPiece piece = board[i][j];
-	    			if (piece == null || piece.color != opponentColor) {
-	    				continue;
-	    			}
-    			
-	    			boolean consumedAll = getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
-						ChessPiece destPiece = board[newRow][newCol];
-						if (destPiece != null && destPiece.piece == Piece.KING) {
-							return false;
-						}
-						return true;
-	    			});
-	    			
-	    			if (!consumedAll) {
-	    				return true;
-	    			}
-	    		}
-	    	}
+            }
+        }
 
-			return false;
-    	}
-    	finally {
-    		turn = originalToMove;
-    	}
-	}
-	
-	interface MoveConsumer {
-		boolean accept(int fromRow, int fromCol, int toRow, int toCol);
-	}
-	
-	private boolean getLegalMoves(int fromRow, int fromCol, MoveConsumer consumer) {
-		// get all the valid capture moves for this piece. 
-		// This could of course be improved massively
-		for (int newRow = 0; newRow < board.length; ++newRow) {
-			for (int newCol = 0; newCol < board.length; ++newCol) {
-				if (legalMove(fromRow, fromCol, newRow, newCol)) {
-					if (!consumer.accept(fromRow, fromCol, newRow, newCol)) {
-						return false;
-					}
-				}
-			}
-		}
-		return true;
-	}
+        return numMoves.get();
+    }
+
+    private boolean isInCheck(Color kingColor) {
+
+        Color originalToMove = turn;
+        try {
+            Color opponentColor = kingColor.opposite();
+
+            turn = opponentColor; // Otherwise legalMove will not allow it
+
+            for (int i = 0; i < board.length; ++i) {
+                for (int j = 0; j < board.length; ++j) {
+                    ChessPiece piece = board[i][j];
+                    if (piece == null || piece.color != opponentColor) {
+                        continue;
+                    }
+
+                    boolean consumedAll = getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
+                        ChessPiece destPiece = board[newRow][newCol];
+                        if (destPiece != null && destPiece.piece == Piece.KING) {
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    if (!consumedAll) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+        finally {
+            turn = originalToMove;
+        }
+    }
+
+    interface MoveConsumer {
+        boolean accept(int fromRow, int fromCol, int toRow, int toCol);
+    }
+
+    private boolean getLegalMoves(int fromRow, int fromCol, MoveConsumer consumer) {
+        // get all the valid capture moves for this piece.
+        // This could of course be improved massively
+        for (int newRow = 0; newRow < board.length; ++newRow) {
+            for (int newCol = 0; newCol < board.length; ++newCol) {
+                if (legalMove(fromRow, fromCol, newRow, newCol)) {
+                    if (!consumer.accept(fromRow, fromCol, newRow, newCol)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
 
     private boolean legalMove(int row1, int col1, int row2, int col2) {
         ChessPiece pieceToMove = board[row1][col1];
@@ -435,22 +440,22 @@ public class ChessBoard {
     }
 
     public void resign(String colorStr) {
-		if (isGameEnded()) {
-			return;
-		}
-		version++;
+        if (isGameEnded()) {
+            return;
+        }
+        version++;
 
-		Color resigner = Color.valueOf(colorStr.toUpperCase());
-		if (resigner != turn) {
-			return;
-		}
-		result = resigner == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
-		resultComment = resigner + " resigns";
-	}
+        Color resigner = Color.valueOf(colorStr.toUpperCase());
+        if (resigner != turn) {
+            return;
+        }
+        result = resigner == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
+        resultComment = resigner + " resigns";
+    }
 
-	private boolean isGameEnded() {
-		return result != null;
-	}
+    private boolean isGameEnded() {
+        return result != null;
+    }
 
     static class ChessPiece {
         private final Color color;
@@ -463,7 +468,7 @@ public class ChessBoard {
 
         @Override
         public String toString() {
-        	return String.format("%s %s", color, piece);
+            return String.format("%s %s", color, piece);
         }
     }
 
@@ -471,9 +476,9 @@ public class ChessBoard {
         WHITE,
         BLACK;
 
-		Color opposite() {
-			return this == WHITE ? BLACK : WHITE;
-		}
+        Color opposite() {
+            return this == WHITE ? BLACK : WHITE;
+        }
     }
     enum Piece {
         PAWN,
@@ -485,29 +490,30 @@ public class ChessBoard {
     }
 
     enum GameResult {
-    	DRAW("Draw"),
-    	STALE_MATE("Stalemate"),
-    	WHITE_WINS("White wins"),
-    	BLACK_WINS("Black wins");
+        DRAW("Draw"),
+        STALE_MATE("Stalemate"),
+        WHITE_WINS("White wins"),
+        BLACK_WINS("Black wins");
 
-    	private String desc;
+        private String desc;
 
-		private GameResult(String desc) {
-			this.desc = desc;
-		}
+        private GameResult(String desc) {
+            this.desc = desc;
+        }
 
-		@Override
-		public String toString() {
-			return desc;
-		}
+        @Override
+        public String toString() {
+            return desc;
+        }
     }
 
     private class CachedBoard {
         private ChessPiece[][] board;
         private Color turn;
         private int[] lastMove;
+        GameResult result;
 
-        public CachedBoard(ChessPiece[][] board, Color turn, int[] lastMove) {
+        public CachedBoard(ChessPiece[][] board, Color turn, int[] lastMove, GameResult result) {
             // Clone board
             this.board = new ChessPiece[board.length][];
             for(int r = 0; r < board.length; r++) {
@@ -516,6 +522,7 @@ public class ChessBoard {
 
             this.turn = turn;
             this.lastMove = lastMove.clone();
+            this.result = result;
         }
     }
 }
