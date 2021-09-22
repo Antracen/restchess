@@ -64,10 +64,17 @@ public class ChessRoomHandler {
         }
     }
 
-	public void resign(UUID roomId, String color) {
+    public void undoMove(UUID roomId) {
+        ChessBoard board = getBoard(roomId);
+        if(board != null) {
+            board.undoMove();
+        }
+    }
+
+    public void resign(UUID roomId, String color) {
 		ChessBoard board = getBoard(roomId);
         if(board != null) {
             board.resign(color);
-        }		
+        }
 	}
 }

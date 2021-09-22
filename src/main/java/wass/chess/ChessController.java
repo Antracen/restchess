@@ -59,7 +59,12 @@ public class ChessController {
     void makeMove(@PathVariable("roomId") UUID roomId, @PathVariable("x1") int x1, @PathVariable("y1") int y1, @PathVariable("x2") int x2, @PathVariable("y2") int y2) {
         chessRoomHandler.move(roomId, x1, y1, x2, y2);
     }
-    
+
+    @GetMapping("/undoMove/{roomId}")
+    void undoMove(@PathVariable("roomId") UUID roomId) {
+        chessRoomHandler.undoMove(roomId);
+    }
+
     @PostMapping("/resign/{roomId}/{color}")
     void resign(@PathVariable("roomId") UUID roomId, @PathVariable("color") String color) {
         chessRoomHandler.resign(roomId, color);
