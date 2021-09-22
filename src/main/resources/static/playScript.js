@@ -18,6 +18,12 @@ function init() {
         handleMouseClick(canvas, e)
     })
 
+    window.addEventListener('keydown', function(event) {
+        if(event.key == 'z') {
+            $.get( "/undoMove/" + roomId, function(data) {});
+        }
+    });
+
     color = $("#color").attr("value");
     roomId = $("#roomId").attr("value");
     window.setInterval(pollBoard, 50);
@@ -69,13 +75,38 @@ function pollBoard() {
 
                     drawPiece(board.charAt(i), row, col);
                 }
-                
-               
-               	if (data.result != null) {
+
+                let lastMove = data.lastMove;
+                if(!(lastMove[0] == 0 && lastMove[1] == 0 && lastMove[2] == 0 && lastMove[3] == 0)) {
+                    let x1 = lastMove[1];
+                    let y1 = lastMove[0];
+                    let x2 = lastMove[3];
+                    let y2 = lastMove[2];
+
+                    if(color == "black") {
+                        x1 = 7 - x1;
+                        y1 = 7 - y1;
+                        x2 = 7 - x2;
+                        y2 = 7 - y2;
+                    }
+
+                    ctx.lineWidth = "4";
+                    ctx.strokeStyle = "yellow";
+                    ctx.beginPath();
+                    ctx.moveTo(50 + 100 * x1, canvas.height - 50 - 100 * y1);
+                    ctx.lineTo(50 + 100 * x2, canvas.height - 50 - 100 * y2);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.rect(0 + 100 * x2, canvas.height - 100 - 100 * y2, 100, 100);
+                    ctx.stroke();
+                }
+
+                if (data.result != null) {
             		result.textContent = "Result: " + data.result + ", cause: " + data.resultComment;
             		gameFinished = true;
             	}
-	        });
+            });
         }
     });
 }
@@ -88,14 +119,14 @@ function drawPiece(piece, row, col) {
         col = 7 - col;
     }
 
-    ctx.drawImage(pieceImages[piece], 0 + 100*col, canvas.height - 100 - 100*row, 100, 100);
+    ctx.drawImage(pieceImages[piece], 100*col, canvas.height - 100 - 100*row, 100, 100);
 }
 
 function handleMouseClick(canvas, event) {
 	if (gameFinished) {
 		return;
 	}
-		
+
     const rect = canvas.getBoundingClientRect()
     const x = event.clientX - rect.left
     const y = event.clientY - rect.top

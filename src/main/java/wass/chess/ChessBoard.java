@@ -1,5 +1,7 @@
 package wass.chess;
 
+import java.util.Stack;
+
 public class ChessBoard {
 
     long version = 0; // Increment when board changes
@@ -8,7 +10,8 @@ public class ChessBoard {
     int[] lastMove = new int[4];
     GameResult result;
     String resultComment;
-    
+    Stack<CachedBoard> history = new Stack<>();
+
     ChessBoard() {
         for(int i = 0; i < 8; i++) {
             board[1][i] = new ChessPiece(Color.WHITE, Piece.PAWN);
@@ -35,6 +38,12 @@ public class ChessBoard {
 
         board[0][4] = new ChessPiece(Color.WHITE, Piece.KING);
         board[7][4] = new ChessPiece(Color.BLACK, Piece.KING);
+
+        cacheMove(board, turn, lastMove);
+    }
+
+    private void cacheMove(ChessPiece[][] board, Color turn, int[] lastMove) {
+        CachedBoard cachedBoard = new CachedBoard(board, turn, lastMove);
     }
 
     public String getBoard() {
@@ -46,14 +55,23 @@ public class ChessBoard {
         }
         return sb.toString();
     }
-    
+
     public GameResult getResult() {
 		return result;
 	}
-    
+
     public String getResultComment() {
 		return resultComment;
 	}
+
+    public String getTurn() {
+        if(turn == Color.WHITE) return "White";
+        else return "Black";
+    }
+
+    public int[] getLastMove() {
+        return lastMove;
+    }
 
     private char pieceLetter(ChessPiece chessPiece) {
         char letter = '-';
@@ -88,11 +106,24 @@ public class ChessBoard {
         return version;
     }
 
+    public void undoMove() {
+        if(history.empty()) return;
+        version++;
+        CachedBoard cachedBoard = history.pop();
+
+        for (int r = 0; r < board.length; r++) {
+            board[r] = cachedBoard.board[r].clone();
+        }
+
+        turn = cachedBoard.turn;
+        lastMove = cachedBoard.lastMove.clone();
+    }
+
     public void move(int row1, int col1, int row2, int col2) {
     	if (isGameEnded()) {
     		return;
     	}
-    	
+
         version++;
         if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) return;
 
@@ -122,13 +153,15 @@ public class ChessBoard {
     }
 
     private void makeTheMove(int row1, int col1, int row2, int col2) {
-    	ChessPiece oldPiece = board[row2][col2];
+        history.push(new CachedBoard(board, turn, lastMove));
+
+        ChessPiece oldPiece = board[row2][col2];
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
 
         if (IsInCheck(turn)) {
         	System.out.println("Illegal move, " + turn + " king would be in check");
-        	board[row1][col1] = board[row2][col2]; 
+        	board[row1][col1] = board[row2][col2];
         	board[row2][col2] = oldPiece;
         	return;
         }
@@ -141,7 +174,7 @@ public class ChessBoard {
         lastMove[1] = col1;
         lastMove[2] = row2;
         lastMove[3] = col2;
-        
+
         turn = turn == Color.WHITE ? Color.BLACK : Color.WHITE;
     }
 
@@ -150,17 +183,17 @@ public class ChessBoard {
     	Color originalToMove = turn;
     	try {
 	    	Color opponentColor = kingColor.opposite();
-	    	
+
 	    	turn = opponentColor; // Otherwise legalMove will not allow it
-	    	
+
 	    	for (int i = 0; i < board.length; ++i) {
 	    		for (int j = 0; j < board.length; ++j) {
 	    			ChessPiece piece = board[i][j];
 	    			if (piece == null || piece.color != opponentColor) {
 	    				continue;
 	    			}
-	    			
-	    			// get all the valid capture moves for this piece. 
+
+	    			// get all the valid capture moves for this piece.
 	    			// This could of course be improved massively
 	    			for (int newRow = 0; newRow < board.length; ++newRow) {
 	    				for (int newCol = 0; newCol < board.length; ++newCol) {
@@ -176,7 +209,7 @@ public class ChessBoard {
 	    			}
 	    		}
 	    	}
-	    	
+
 			return false;
     	}
     	finally {
@@ -184,7 +217,7 @@ public class ChessBoard {
     	}
 	}
 
-	private boolean legalMove(int row1, int col1, int row2, int col2) {
+    private boolean legalMove(int row1, int col1, int row2, int col2) {
         ChessPiece pieceToMove = board[row1][col1];
 
         if(pieceToMove.color != turn) return false;
@@ -197,7 +230,7 @@ public class ChessBoard {
         if(pieceToMove.piece == Piece.KING) return legalKingMove(pieceToMove.color, row1, col1, row2, col2);
 
         // Don't validate king not in check here since the IsInCheck calls this method..
-        
+
         return false;
     }
 
@@ -205,14 +238,14 @@ public class ChessBoard {
         if(color == Color.WHITE) {
             return
                     (col1 == col2 && row1 + 1 == row2 && board[row2][col2] == null)
-                    || (row1 == 1 && col1 == col2 && row1 + 2 == row2 && board[row2][col2] == null)
-                    || (abs(col1 - col2) == 1 && row1 + 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
+                            || (row1 == 1 && col1 == col2 && row1 + 2 == row2 && board[row2][col2] == null)
+                            || (abs(col1 - col2) == 1 && row1 + 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
         }
         else {
             return
                     (col1 == col2 && row1 - 1 == row2 && board[row2][col2] == null)
-                    || (row1 == 6 && col1 == col2 && row1 - 2 == row2 && board[row2][col2] == null)
-                    || (abs(col1 - col2) == 1 && row1 - 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
+                            || (row1 == 6 && col1 == col2 && row1 - 2 == row2 && board[row2][col2] == null)
+                            || (abs(col1 - col2) == 1 && row1 - 1 == row2 && board[row2][col2] != null && board[row2][col2].color != color);
         }
     }
 
@@ -242,8 +275,7 @@ public class ChessBoard {
         int rowStep = abs(row1 - row2);
         int colStep = abs(col1 - col2);
 
-        boolean valid = (rowStep == 1 && colStep == 2) || (rowStep == 2 && colStep == 1); 
-        
+        boolean valid = (rowStep == 1 && colStep == 2) || (rowStep == 2 && colStep == 1);
         if (!valid) return false;
 
         ChessPiece target = board[row2][col2];
@@ -275,7 +307,6 @@ public class ChessBoard {
         int colStep = abs(col1 - col2);
 
         if(rowStep > 1 || colStep > 1) return false;
-        if(rowStep == 0 && colStep == 0) return false;
 
         ChessPiece target = board[row2][col2];
         return target == null || target.color != color;
@@ -310,8 +341,8 @@ public class ChessBoard {
     }
 
     /*
-    *   TODO: This is not complete, needs rules for when king is in check / moves through check / has moved
-    * */
+     *   TODO: This is not complete, needs rules for when king is in check / moves through check / has moved
+     * */
     private boolean castling(int row1, int col1, int row2, int col2) {
         ChessPiece pieceToMove = board[row1][col1];
         Color color = pieceToMove.color;
@@ -341,6 +372,24 @@ public class ChessBoard {
         return i < 0 ? -i : i;
     }
 
+    public void resign(String colorStr) {
+		if (isGameEnded()) {
+			return;
+		}
+		version++;
+
+		Color resigner = Color.valueOf(colorStr.toUpperCase());
+		if (resigner != turn) {
+			return;
+		}
+		result = resigner == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
+		resultComment = resigner + " resigns";
+	}
+
+	private boolean isGameEnded() {
+		return result != null;
+	}
+
     static class ChessPiece {
         private final Color color;
         private final Piece piece;
@@ -349,7 +398,7 @@ public class ChessBoard {
             this.color = color;
             this.piece = piece;
         }
-        
+
         @Override
         public String toString() {
         	return String.format("%s %s", color, piece);
@@ -364,7 +413,6 @@ public class ChessBoard {
 			return this == WHITE ? BLACK : WHITE;
 		}
     }
-    
     enum Piece {
         PAWN,
         ROOK,
@@ -373,41 +421,39 @@ public class ChessBoard {
         QUEEN,
         KING
     }
-    
+
     enum GameResult {
     	DRAW("Draw"),
     	STALE_MATE("Stalemate"),
     	WHITE_WINS("White wins"),
     	BLACK_WINS("Black wins");
-    	
+
     	private String desc;
 
 		private GameResult(String desc) {
 			this.desc = desc;
 		}
-		
+
 		@Override
 		public String toString() {
 			return desc;
 		}
     }
-    
-    
-	public void resign(String colorStr) {
-		if (isGameEnded()) {
-			return;
-		}
-		version++;
-		
-		Color resigner = Color.valueOf(colorStr.toUpperCase());
-		if (resigner != turn) {
-			return;
-		}
-		result = resigner == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
-		resultComment = resigner + " resigns";
-	}
 
-	private boolean isGameEnded() {
-		return result != null;
-	}
+    private class CachedBoard {
+        private ChessPiece[][] board;
+        private Color turn;
+        private int[] lastMove;
+
+        public CachedBoard(ChessPiece[][] board, Color turn, int[] lastMove) {
+            // Clone board
+            this.board = new ChessPiece[board.length][];
+            for(int r = 0; r < board.length; r++) {
+                this.board[r] = board[r].clone();
+            }
+
+            this.turn = turn;
+            this.lastMove = lastMove.clone();
+        }
+    }
 }
