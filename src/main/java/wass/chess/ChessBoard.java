@@ -1,5 +1,7 @@
 package wass.chess;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 public class ChessBoard {
 
     long version = 0; // Increment when board changes
@@ -93,7 +95,6 @@ public class ChessBoard {
     		return;
     	}
     	
-        version++;
         if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) return;
 
         if(legalMove(row1, col1, row2, col2)) {
@@ -119,19 +120,17 @@ public class ChessBoard {
                 board[row1][0] = null;
             }
         }
+        version++;
     }
 
     private void makeTheMove(int row1, int col1, int row2, int col2) {
-    	ChessPiece oldPiece = board[row2][col2];
+    	if (wouldBeInCheck(turn, row1, col1, row2, col2)) {
+    		System.out.println("Illegal move, " + turn + " king would be in check");
+    		return;
+    	}
+    	
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
-
-        if (IsInCheck(turn)) {
-        	System.out.println("Illegal move, " + turn + " king would be in check");
-        	board[row1][col1] = board[row2][col2]; 
-        	board[row2][col2] = oldPiece;
-        	return;
-        }
 
         if (board[row2][col2].piece == Piece.PAWN && (row2 == 7 || row2 == 0)) {
         	board[row2][col2] = new ChessPiece(board[row2][col2].color, Piece.QUEEN);
@@ -143,9 +142,57 @@ public class ChessBoard {
         lastMove[3] = col2;
         
         turn = turn == Color.WHITE ? Color.BLACK : Color.WHITE;
+        
+        if (0 == getNumberOfValidMoves(turn)) {
+        	if (isInCheck(turn)) {
+        		result = turn == Color.WHITE ? GameResult.BLACK_WINS : GameResult.WHITE_WINS;
+        		resultComment = "Checkmate";
+        	} else {
+        		result = GameResult.STALE_MATE;
+        	}
+        }
     }
+    
+    
 
-    private boolean IsInCheck(Color kingColor) {
+    private boolean wouldBeInCheck(Color color, int row1, int col1, int row2, int col2) {
+    	ChessPiece oldPiece = board[row2][col2];
+        board[row2][col2] = board[row1][col1];
+        board[row1][col1] = null;
+
+        boolean inCheck = isInCheck(color);
+        
+    	board[row1][col1] = board[row2][col2]; 
+    	board[row2][col2] = oldPiece;
+    	
+    	return inCheck;
+	}
+
+	private int getNumberOfValidMoves(Color color) {
+		AtomicInteger numMoves = new AtomicInteger();
+
+		for (int i = 0; i < board.length; ++i) {
+    		for (int j = 0; j < board.length; ++j) {
+    			ChessPiece piece = board[i][j];
+    			if (piece == null || piece.color != color) {
+    				continue;
+    			}
+    			
+    			// Todo: check would be in check
+    			getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
+    				if (!wouldBeInCheck(color, fromRow, fromCol, newRow, newCol)) {
+    					numMoves.incrementAndGet();
+    				}
+    				return true;
+    			});
+    			
+    		}
+    	}
+    	
+		return numMoves.get();
+	}
+
+	private boolean isInCheck(Color kingColor) {
 
     	Color originalToMove = turn;
     	try {
@@ -160,19 +207,16 @@ public class ChessBoard {
 	    				continue;
 	    			}
 	    			
-	    			// get all the valid capture moves for this piece. 
-	    			// This could of course be improved massively
-	    			for (int newRow = 0; newRow < board.length; ++newRow) {
-	    				for (int newCol = 0; newCol < board.length; ++newCol) {
-	    					if (legalMove(i, j, newRow, newCol)) {
-	    						ChessPiece capturePiece = board[i][j];
-	    						ChessPiece destPiece = board[newRow][newCol];
-	    						if (destPiece != null && destPiece.piece == Piece.KING) {
-	    							System.out.println(destPiece + " in check by " + capturePiece);
-	    							return true;
-	    						}
-	    					}
-	    				}
+	    			boolean consumedAll = getLegalMoves(i, j, (fromRow, fromCol, newRow, newCol) -> {
+						ChessPiece destPiece = board[newRow][newCol];
+						if (destPiece != null && destPiece.piece == Piece.KING) {
+							return false;
+						}
+						return true;
+	    			});
+	    			
+	    			if (!consumedAll) {
+	    				return true;
 	    			}
 	    		}
 	    	}
@@ -182,6 +226,25 @@ public class ChessBoard {
     	finally {
     		turn = originalToMove;
     	}
+	}
+	
+	interface MoveConsumer {
+		boolean accept(int fromRow, int fromCol, int toRow, int toCol);
+	}
+	
+	private boolean getLegalMoves(int fromRow, int fromCol, MoveConsumer consumer) {
+		// get all the valid capture moves for this piece. 
+		// This could of course be improved massively
+		for (int newRow = 0; newRow < board.length; ++newRow) {
+			for (int newCol = 0; newCol < board.length; ++newCol) {
+				if (legalMove(fromRow, fromCol, newRow, newCol)) {
+					if (!consumer.accept(fromRow, fromCol, newRow, newCol)) {
+						return false;
+					}
+				}
+			}
+		}
+		return true;
 	}
 
 	private boolean legalMove(int row1, int col1, int row2, int col2) {
