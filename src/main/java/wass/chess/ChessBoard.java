@@ -9,6 +9,7 @@ public class ChessBoard {
     ChessPiece[][] board = new ChessPiece[8][8];
     Color turn = Color.WHITE;
     int[] lastMove = new int[4];
+    String algebraicLastMove = "";
     GameResult result;
     String resultComment;
     Stack<CachedBoard> history = new Stack<>();
@@ -40,11 +41,11 @@ public class ChessBoard {
         board[0][4] = new ChessPiece(Color.WHITE, Piece.KING);
         board[7][4] = new ChessPiece(Color.BLACK, Piece.KING);
 
-        cacheMove(board, turn, lastMove);
+        cacheMove(board, turn, lastMove, algebraicLastMove);
     }
 
-    private void cacheMove(ChessPiece[][] board, Color turn, int[] lastMove) {
-        CachedBoard cachedBoard = new CachedBoard(board, turn, lastMove, result);
+    private void cacheMove(ChessPiece[][] board, Color turn, int[] lastMove, String algebraicLastMove) {
+        CachedBoard cachedBoard = new CachedBoard(board, turn, lastMove, result, algebraicLastMove);
     }
 
     public String getBoard() {
@@ -65,13 +66,17 @@ public class ChessBoard {
         return resultComment;
     }
 
+    public int[] getLastMove() {
+        return lastMove;
+    }
+
+    public String getAlgebraicLastMove() {
+        return algebraicLastMove;
+    }
+
     public String getTurn() {
         if(turn == Color.WHITE) return "White";
         else return "Black";
-    }
-
-    public int[] getLastMove() {
-        return lastMove;
     }
 
     private char pieceLetter(ChessPiece chessPiece) {
@@ -108,9 +113,8 @@ public class ChessBoard {
     }
 
     public void undoMove() {
-        // TODO: Also reset the result
         if(history.empty()) return;
-        version++;
+        version--;
         CachedBoard cachedBoard = history.pop();
 
         for (int r = 0; r < board.length; r++) {
@@ -119,6 +123,7 @@ public class ChessBoard {
 
         turn = cachedBoard.turn;
         lastMove = cachedBoard.lastMove.clone();
+        algebraicLastMove = cachedBoard.algebraicLastMove;
         result = cachedBoard.result;
     }
 
@@ -127,7 +132,6 @@ public class ChessBoard {
             return;
         }
         if(board[row1][col1] == null || (row1 == row2 && col1 == col2)) {
-            version++;
             return;
         }
 
@@ -154,6 +158,9 @@ public class ChessBoard {
                 board[row1][0] = null;
             }
         }
+        else {
+            return;
+        }
         version++;
     }
 
@@ -163,9 +170,8 @@ public class ChessBoard {
             return;
         }
 
-        history.push(new CachedBoard(board, turn, lastMove, result));
+        history.push(new CachedBoard(board, turn, lastMove, result, algebraicLastMove));
 
-        ChessPiece oldPiece = board[row2][col2];
         board[row2][col2] = board[row1][col1];
         board[row1][col1] = null;
 
@@ -177,6 +183,8 @@ public class ChessBoard {
         lastMove[1] = col1;
         lastMove[2] = row2;
         lastMove[3] = col2;
+
+        algebraicLastMove = "" + board[row2][col2].piece.algebraicChar() + "abcdefgh".charAt(col2) + (row2+1);
 
         turn = turn == Color.WHITE ? Color.BLACK : Color.WHITE;
 
@@ -486,7 +494,25 @@ public class ChessBoard {
         KNIGHT,
         BISHOP,
         QUEEN,
-        KING
+        KING;
+
+        public char algebraicChar() {
+            switch(this) {
+                case PAWN:
+                    return ' ';
+                case ROOK:
+                    return 'R';
+                case KNIGHT:
+                    return 'N';
+                case BISHOP:
+                    return 'B';
+                case QUEEN:
+                    return 'Q';
+                case KING:
+                    return 'K';
+            }
+            return ' ';
+        }
     }
 
     enum GameResult {
@@ -512,8 +538,9 @@ public class ChessBoard {
         private Color turn;
         private int[] lastMove;
         GameResult result;
+        String algebraicLastMove;
 
-        public CachedBoard(ChessPiece[][] board, Color turn, int[] lastMove, GameResult result) {
+        public CachedBoard(ChessPiece[][] board, Color turn, int[] lastMove, GameResult result, String algebraicLastMove) {
             // Clone board
             this.board = new ChessPiece[board.length][];
             for(int r = 0; r < board.length; r++) {
@@ -523,6 +550,7 @@ public class ChessBoard {
             this.turn = turn;
             this.lastMove = lastMove.clone();
             this.result = result;
+            this.algebraicLastMove = algebraicLastMove;
         }
     }
 }
