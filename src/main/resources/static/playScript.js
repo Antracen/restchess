@@ -184,14 +184,13 @@ function drawAllPiecesAndLastMove() {
     let x2 = lastMove[3];
     let y2 = lastMove[2];
 
-    if(color == "black") {
-        x1 = 7 - x1;
-        y1 = 7 - y1;
-        x2 = 7 - x2;
-        y2 = 7 - y2;
-    }
-
     if(!(x1 == 0 && x2 == 0 && y1 == 0 && y2 == 0)) {
+        if(color == "black") {
+            x1 = 7 - x1;
+            y1 = 7 - y1;
+            x2 = 7 - x2;
+            y2 = 7 - y2;
+        }
         drawSquare(x1, y1);
         drawSquare(x2, y2);
     }
@@ -261,9 +260,18 @@ function handleMouseMove(canvas, event) {
 
     if(mouseMovementTracker.from.length == 0) return;
 
-    clearPiece(...mouseMovementTracker.from);
-    [row, col] = getMouseRowAndCol(event);
 
+    [row, col] = getMouseRowAndCol(event);
+    [fromRow, fromCol] = mouseMovementTracker.from;
+
+    if(color == "black") {
+        row = 7 - row;
+        col = 7 - col;
+        fromRow = 7 - fromRow;
+        fromCol = 7 - fromCol;
+    }
+
+    clearPiece(fromRow, fromCol);
     mouseMovementTracker.setIntermediate([row, col]);
     ctx[3].clearRect(0, 0, canvas.width, canvas.height);
     drawIntermediaryPiece(mouseMovementTracker.selectedPiece, ...getMouseCoords(event));
@@ -272,9 +280,14 @@ function handleMouseMove(canvas, event) {
 function handleMouseUp(canvas, event) {
     if(gameFinished) return;
 
-    ctx[3].clearRect(0, 0, canvas.width, canvas.height);
     ctx[1].clearRect(0, 0, canvas.width, canvas.height);
+    ctx[3].clearRect(0, 0, canvas.width, canvas.height);
     [row, col] = getMouseRowAndCol(event);
+
+    if(color == "black") {
+        row = 7 - row;
+        col = 7 - col;
+    }
 
     mouseMovementTracker.setTo([row, col])
     makeMove();
