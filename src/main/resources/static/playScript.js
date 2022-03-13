@@ -151,8 +151,8 @@ function pollBoard() {
                         let moveHistoryText = "";
                         let white = true;
                         for(let historicMove of moveHistoryParagraph) {
-                            if(white) moveHistoryText += "\n";
-                            else moveHistoryText += "\t";
+                            if(white) historicMove = historicMove.padEnd(10);
+                            else historicMove += "\n";
                             moveHistoryText += historicMove;
                             white = !white;
                         }
